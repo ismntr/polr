@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  username    String    @unique
+  email       String
+  role        String    @default("default")
+  active      Boolean   @default(true)
+  apiKey      String?   @map("api_key")
+  apiActive   Boolean   @default(false) @map("api_active")
+  apiQuota    Int       @default(60) @map("api_quota")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  links       Link[]
+
+  @@map("users")
+}
+
+model Link {
+  id          Int       @id @default(autoincrement())
+  shortUrl    String    @unique @map("short_url")
+  longUrl     String    @map("long_url")
+  ip          String    @default("127.0.0.1")
+  clicks      Int       @default(0)
+  secretKey   String    @default("") @map("secret_key")
+  isDisabled  Boolean   @default(false) @map("is_disabled")
+  isCustom    Boolean   @default(false) @map("is_custom")
+  creatorId   Int?      @map("creator_id")
+  creator     User?     @relation(fields: [creatorId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  clickEvents Click[]
+
+  @@map("links")
+}
+
+model Click {
+  id          Int       @id @default(autoincrement())
+  linkId      Int       @map("link_id")
+  link        Link      @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  ip          String
+  country     String?
+  referer     String?
+  refererHost String?   @map("referer_host")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([ip])
+  @@index([refererHost])
+  @@index([linkId])
+  @@map("clicks")
+}

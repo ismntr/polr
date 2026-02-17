@@ -6,3 +6,8 @@ env
 .env.bak
 .env.example
 composer.phar
+
+# Next.js
+node_modules/
+.next/
+out/
