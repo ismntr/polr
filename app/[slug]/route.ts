@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { sql } from "@/lib/db";
 import { headers } from "next/headers";
 import { isBot } from "@/lib/bot";
 
@@ -9,11 +9,16 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  const link = await prisma.link.findUnique({
-    where: { shortUrl: slug },
-  });
+  const rows = await sql`
+    SELECT id, short_url, long_url, is_disabled
+    FROM links
+    WHERE short_url = ${slug}
+    LIMIT 1
+  `;
 
-  if (!link || link.isDisabled) {
+  const link = rows[0];
+
+  if (!link || link.is_disabled) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
@@ -36,26 +41,16 @@ export async function GET(
   if (!isBot(userAgent)) {
     after(async () => {
       try {
-        await prisma.$transaction([
-          prisma.link.update({
-            where: { id: link.id },
-            data: { clicks: { increment: 1 } },
-          }),
-          prisma.click.create({
-            data: {
-              linkId: link.id,
-              ip,
-              userAgent,
-              referer,
-              refererHost,
-            },
-          }),
-        ]);
+        await sql`UPDATE links SET clicks = clicks + 1, updated_at = NOW() WHERE id = ${link.id}`;
+        await sql`
+          INSERT INTO clicks (link_id, ip, user_agent, referer, referer_host, created_at, updated_at)
+          VALUES (${link.id}, ${ip}, ${userAgent}, ${referer}, ${refererHost}, NOW(), NOW())
+        `;
       } catch (err) {
         console.error("Failed to record click analytics:", err);
       }
     });
   }
 
-  return NextResponse.redirect(link.longUrl, 301);
+  return NextResponse.redirect(link.long_url, 301);
 }

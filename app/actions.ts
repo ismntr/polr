@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { sql } from "@/lib/db";
 import { generateRandomSlug, validateEnding } from "@/lib/utils";
 
 const MAX_URL_LENGTH = 65_535;
@@ -37,11 +37,9 @@ export async function shortenUrl(formData: FormData) {
       };
     }
 
-    const existing = await prisma.link.findUnique({
-      where: { shortUrl: customEnding },
-    });
+    const existing = await sql`SELECT id FROM links WHERE short_url = ${customEnding} LIMIT 1`;
 
-    if (existing) {
+    if (existing.length > 0) {
       return { error: "This custom ending is already in use." };
     }
 
@@ -54,10 +52,8 @@ export async function shortenUrl(formData: FormData) {
 
     for (let i = 0; i < MAX_RETRIES; i++) {
       slug = generateRandomSlug(6);
-      const existing = await prisma.link.findUnique({
-        where: { shortUrl: slug },
-      });
-      if (!existing) {
+      const existing = await sql`SELECT id FROM links WHERE short_url = ${slug} LIMIT 1`;
+      if (existing.length === 0) {
         found = true;
         break;
       }
@@ -69,13 +65,10 @@ export async function shortenUrl(formData: FormData) {
   }
 
   // ── Save to database ──────────────────────────────────────────
-  await prisma.link.create({
-    data: {
-      shortUrl: slug,
-      longUrl,
-      isCustom: !!customEnding,
-    },
-  });
+  await sql`
+    INSERT INTO links (short_url, long_url, is_custom, created_at, updated_at)
+    VALUES (${slug}, ${longUrl}, ${!!customEnding}, NOW(), NOW())
+  `;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return { shortUrl: `${appUrl}/${slug}` };
