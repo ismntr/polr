@@ -13,7 +13,7 @@ export async function GET(
   });
 
   if (!link || link.isDisabled) {
-    return NextResponse.redirect(new URL("/404", request.url));
+    return new NextResponse("Not Found", { status: 404 });
   }
 
   // ── Record click (fire-and-forget) ──────────────────────────
@@ -48,8 +48,8 @@ export async function GET(
         },
       }),
     ])
-    .catch(() => {
-      // silently ignore analytics errors so redirect is not blocked
+    .catch((err) => {
+      console.error("Failed to record click analytics:", err);
     });
 
   return NextResponse.redirect(link.longUrl, 301);

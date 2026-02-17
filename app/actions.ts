@@ -47,19 +47,24 @@ export async function shortenUrl(formData: FormData) {
 
     slug = customEnding;
   } else {
-    // Generate a random slug, checking for collisions
-    let collision = true;
-    slug = generateRandomSlug(6);
+    // Generate a random slug, checking for collisions (max 10 attempts)
+    const MAX_RETRIES = 10;
+    let found = false;
+    slug = "";
 
-    while (collision) {
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      slug = generateRandomSlug(6);
       const existing = await prisma.link.findUnique({
         where: { shortUrl: slug },
       });
       if (!existing) {
-        collision = false;
-      } else {
-        slug = generateRandomSlug(6);
+        found = true;
+        break;
       }
+    }
+
+    if (!found) {
+      return { error: "Unable to generate a unique slug. Please try again." };
     }
   }
 
