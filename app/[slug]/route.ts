@@ -4,9 +4,9 @@ import { headers } from "next/headers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const link = await prisma.link.findUnique({
     where: { shortUrl: slug },
@@ -17,7 +17,7 @@ export async function GET(
   }
 
   // ── Record click (fire-and-forget) ──────────────────────────
-  const headersList = headers();
+  const headersList = await headers();
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "0.0.0.0";
   const userAgent = headersList.get("user-agent") ?? null;
   const referer = headersList.get("referer") ?? null;
